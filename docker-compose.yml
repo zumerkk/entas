@@ -1,0 +1,113 @@
+version: '3.9'
+
+services:
+  # ─── MongoDB ───
+  mongo:
+    image: mongo:7
+    container_name: entec-mongo
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: entec
+      MONGO_INITDB_ROOT_PASSWORD: entec_secret_2026
+      MONGO_INITDB_DATABASE: entec_b2b
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', 'db.adminCommand("ping")']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis (cache + queue) ───
+  redis:
+    image: redis:7-alpine
+    container_name: entec-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ─── API Backend ───
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: entec-api
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      MONGODB_URI: mongodb://entec:entec_secret_2026@mongo:27017/entec_b2b?authSource=admin
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: entec-jwt-super-secret-key-2026
+      JWT_REFRESH_SECRET: entec-jwt-refresh-secret-key-2026
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ─── Admin Panel ───
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    container_name: entec-admin
+    restart: unless-stopped
+    ports:
+      - '3002:3002'
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:3001/api
+    depends_on:
+      - api
+
+  # ─── Web Storefront ───
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: entec-web
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:3001/api
+    depends_on:
+      - api
+
+  # ─── Mongo Express (dev only) ───
+  mongo-express:
+    image: mongo-express:1
+    container_name: entec-mongo-ui
+    restart: unless-stopped
+    ports:
+      - '8081:8081'
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: entec
+      ME_CONFIG_MONGODB_ADMINPASSWORD: entec_secret_2026
+      ME_CONFIG_MONGODB_URL: mongodb://entec:entec_secret_2026@mongo:27017/
+      ME_CONFIG_BASICAUTH: 'false'
+    depends_on:
+      mongo:
+        condition: service_healthy
+    profiles:
+      - dev
+
+volumes:
+  mongo_data:
+  mongo_config:
+  redis_data:

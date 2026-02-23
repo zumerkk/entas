@@ -1,0 +1,25 @@
+{
+    "expo": {
+        "name": "ENTEC B2B",
+        "slug": "entec-b2b",
+        "version": "0.0.1",
+        "orientation": "portrait",
+        "userInterfaceStyle": "light",
+        "splash": {
+            "backgroundColor": "#172554"
+        },
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.entas.entecb2b"
+        },
+        "android": {
+            "adaptiveIcon": {
+                "backgroundColor": "#172554"
+            },
+            "package": "com.entas.entecb2b"
+        },
+        "extra": {
+            "apiUrl": "http://localhost:3001/api"
+        }
+    }
+}
