@@ -1,0 +1,82 @@
+services:
+  # ─── API Backend (NestJS) ───
+  - type: web
+    name: entas-api
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: main
+    buildCommand: |
+      npm install -g pnpm@9 &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @entec/shared build &&
+      pnpm --filter @entec/api build
+    startCommand: node apps/api/dist/main.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: "15m"
+      - key: JWT_REFRESH_EXPIRATION
+        value: "7d"
+      - key: WEB_URL
+        value: "https://entas-web.onrender.com"
+      - key: ADMIN_URL
+        value: "https://entas-admin.onrender.com"
+
+  # ─── Web Mağaza (Next.js) ───
+  - type: web
+    name: entas-web
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: main
+    buildCommand: |
+      npm install -g pnpm@9 &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @entec/shared build &&
+      pnpm --filter @entec/ui build &&
+      pnpm --filter @entec/web build
+    startCommand: |
+      cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static 2>/dev/null;
+      cp -r apps/web/public apps/web/.next/standalone/apps/web/public 2>/dev/null;
+      node apps/web/.next/standalone/apps/web/server.js
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: "https://entas-api.onrender.com/api"
+      - key: PORT
+        value: "10000"
+      - key: HOSTNAME
+        value: "0.0.0.0"
+
+  # ─── Admin Panel (Next.js) ───
+  - type: web
+    name: entas-admin
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: main
+    buildCommand: |
+      npm install -g pnpm@9 &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @entec/shared build &&
+      pnpm --filter @entec/ui build &&
+      pnpm --filter @entec/admin build
+    startCommand: |
+      cp -r apps/admin/.next/static apps/admin/.next/standalone/apps/admin/.next/static 2>/dev/null;
+      cp -r apps/admin/public apps/admin/.next/standalone/apps/admin/public 2>/dev/null;
+      node apps/admin/.next/standalone/apps/admin/server.js
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: "https://entas-api.onrender.com/api"
+      - key: PORT
+        value: "10000"
+      - key: HOSTNAME
+        value: "0.0.0.0"
